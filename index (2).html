@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Трекер привычек</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f4ff; --card:rgba(255,255,255,.82); --card2:#f1eefc;
+  --line:#e6e1fa; --text:#1d1840; --mute:#6b6790; --dim:#a29fc0;
+  --vio:#6d4aff; --cy:#00b4d8; --pk:#ec3fa2; --gr:#12b886; --gold:#f59f00; --red:#f03e5e;
+  --sh:0 6px 22px -8px rgba(76,52,170,.18), 0 1px 2px rgba(76,52,170,.06);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:Manrope,system-ui,sans-serif;overscroll-behavior:none}
+body{min-height:100vh;overflow-x:hidden}
+#sky{position:fixed;inset:0;z-index:0;pointer-events:none}
+.nebula{position:fixed;inset:-20%;z-index:0;pointer-events:none;filter:blur(50px);opacity:.9;
+  background:radial-gradient(38% 28% at 15% 10%,rgba(109,74,255,.20),transparent 70%),
+             radial-gradient(35% 25% at 90% 30%,rgba(0,180,216,.16),transparent 70%),
+             radial-gradient(40% 30% at 50% 100%,rgba(236,63,162,.13),transparent 70%),
+             radial-gradient(30% 22% at 80% 75%,rgba(245,159,0,.10),transparent 70%);
+  animation:drift 30s ease-in-out infinite alternate}
+@keyframes drift{to{transform:translate3d(3%,-2%,0) rotate(4deg)}}
+#app{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:14px 16px calc(96px + var(--safe-b))}
+
+/* шапка */
+.top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.ava{position:relative;width:58px;height:58px;flex:none}
+.ava svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ava .in{position:absolute;inset:7px;border-radius:50%;display:grid;place-items:center;font:900 18px Unbounded;color:#fff;
+  background:linear-gradient(140deg,#8f74ff,#6d4aff 55%,#ec3fa2);box-shadow:0 6px 16px -4px rgba(109,74,255,.55)}
+.ava .lv{position:absolute;right:-4px;bottom:-3px;background:linear-gradient(135deg,var(--gold),var(--pk));color:#fff;
+  font:800 10px Unbounded;padding:3px 6px;border-radius:9px;border:2px solid #fff;box-shadow:0 3px 8px rgba(236,63,162,.35)}
+.who{flex:1;min-width:0}
+.who .nm{font:700 16px Unbounded;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .rk{font-size:12px;color:var(--mute);margin-top:2px;font-weight:600}
+.xpbar{height:7px;border-radius:4px;background:#e9e5fb;margin-top:7px;overflow:hidden}
+.xpbar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--vio),var(--pk),var(--gold));
+  transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.xptx{font-size:10.5px;color:var(--dim);margin-top:4px;letter-spacing:.3px;font-weight:600}
+.ibtn{flex:none;width:40px;height:40px;border-radius:13px;border:1px solid var(--line);background:#fff;color:var(--vio);
+  font-size:18px;display:grid;place-items:center;cursor:pointer;box-shadow:var(--sh)}
+.ibtn:active{transform:scale(.92)}
+
+/* герой */
+.hero{position:relative;display:grid;place-items:center;margin:4px 0 6px}
+.hero svg{width:min(88vw,340px);height:auto;overflow:visible}
+.hero .ctr{position:absolute;inset:0;display:grid;place-items:center;text-align:center;pointer-events:none}
+.hero .ctr>div{margin:0 auto}
+.pct{font:900 44px/1 Unbounded;background:linear-gradient(180deg,#3b2a9e,#6d4aff 60%,#ec3fa2);-webkit-background-clip:text;background-clip:text;color:transparent}
+.pct small{font-size:20px}
+.stat{margin-top:8px;font:700 11px Unbounded;letter-spacing:.6px;padding:5px 10px;border-radius:20px;color:#4b31d6;
+  background:#fff;border:1px solid #ddd5ff;box-shadow:0 4px 14px -4px rgba(109,74,255,.35);display:inline-block;max-width:100%;line-height:1.25}
+.stat small{display:block;font-size:9px;letter-spacing:1px;color:var(--mute);margin-top:1px}
+.dayl{font-size:12px;color:var(--mute);margin-top:6px;font-weight:600}
+.ring{transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)}
+
+/* полоса дней */
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:10px 0 16px}
+.wd{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:7px 0 6px;text-align:center;cursor:pointer;position:relative;box-shadow:var(--sh)}
+.wd.sel{border-color:var(--vio);box-shadow:0 0 0 2px rgba(109,74,255,.18),var(--sh)}
+.wd .a{font-size:10px;color:var(--mute);text-transform:uppercase;font-weight:700}
+.wd .b{font:700 13px Unbounded;margin:2px 0 4px}
+.wd svg{width:24px;height:24px;display:block;margin:0 auto}
+.wd .star{position:absolute;top:-7px;right:-3px;font-size:13px}
+
+.sec{display:flex;align-items:center;justify-content:space-between;margin:20px 2px 10px}
+.sec h3{margin:0;font:700 12.5px Unbounded;letter-spacing:.6px;color:#3b2a9e}
+.sec span{font-size:12px;color:var(--mute);font-weight:600}
+
+/* карточки привычек */
+.hab{position:relative;display:flex;align-items:center;gap:12px;padding:13px 12px 13px 14px;margin-bottom:10px;border-radius:18px;
+  background:var(--card);border:1px solid var(--line);cursor:pointer;overflow:hidden;box-shadow:var(--sh);transition:transform .15s}
+.hab:active{transform:scale(.985)}
+.hab::before{content:"";position:absolute;left:0;top:14%;bottom:14%;width:3px;border-radius:3px;background:var(--c)}
+.hab.done{background:linear-gradient(135deg,color-mix(in srgb,var(--c) 9%,#fff),#fff 70%);border-color:color-mix(in srgb,var(--c) 35%,#fff)}
+.hab .em{width:44px;height:44px;flex:none;border-radius:14px;display:grid;place-items:center;font-size:22px;
+  background:color-mix(in srgb,var(--c) 12%,#fff)}
+.hab .bd{flex:1;min-width:0}
+.hab .t{display:flex;align-items:baseline;gap:8px}
+.hab .t b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hab .t .fire{font-size:12px;color:#e8590c;font-weight:800;white-space:nowrap}
+.hab .v{font-size:12.5px;color:var(--mute);margin-top:2px;font-weight:600}
+.hab .v b{color:var(--text)}
+.bar{height:7px;border-radius:5px;background:color-mix(in srgb,var(--c) 12%,#f1eefc);margin-top:8px;overflow:hidden;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 55%,#fff),var(--c));
+  transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.bar i.over{background:linear-gradient(90deg,var(--c),var(--gold));}
+.dots{display:flex;gap:5px;margin-top:8px}
+.dots i{width:18px;height:7px;border-radius:4px;background:color-mix(in srgb,var(--c) 12%,#f1eefc)}
+.dots i.on{background:var(--c)}
+.qk{flex:none;min-width:52px;height:44px;border-radius:14px;border:1px solid color-mix(in srgb,var(--c) 35%,#fff);
+  background:color-mix(in srgb,var(--c) 10%,#fff);color:color-mix(in srgb,var(--c) 75%,#000);font:800 14px Manrope;cursor:pointer}
+.qk:active{transform:scale(.9)}
+.qk.ok{background:var(--c);color:#fff;border-color:var(--c);box-shadow:0 6px 14px -4px var(--c)}
+.empty{padding:26px;text-align:center;color:var(--mute);border:1px dashed #d6cff5;border-radius:18px;background:rgba(255,255,255,.5)}
+
+/* статы */
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi{padding:14px;border-radius:18px;background:var(--card);border:1px solid var(--line);box-shadow:var(--sh)}
+.kpi .n{font:900 24px Unbounded;margin-top:4px;color:#2a1f7a}
+.kpi .l{font-size:12px;color:var(--mute);font-weight:600}
+.panel{padding:14px;border-radius:20px;background:var(--card);border:1px solid var(--line);box-shadow:var(--sh)}
+.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:4px}
+.heat i{aspect-ratio:1;border-radius:4px;background:#efecfb}
+.legend{display:flex;justify-content:flex-end;align-items:center;gap:4px;font-size:10px;color:var(--dim);margin-top:8px;font-weight:600}
+.legend i{width:10px;height:10px;border-radius:3px}
+.hrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.hrow:last-child{border-bottom:0}
+.hrow .nm{flex:1;font-size:14px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+.hrow .mx{font-size:11px;color:var(--mute);white-space:nowrap;font-weight:600}
+.hrow .pc{font:700 13px Unbounded;width:52px;text-align:right}
+.hrow .ar{color:var(--dim);font-size:14px}
+.wk{display:grid;grid-template-columns:28px 1fr 44px;align-items:center;gap:10px;padding:5px 0;font-size:12.5px;font-weight:700}
+.wk .tr{height:12px;border-radius:6px;background:#efecfb;overflow:hidden}
+.wk .tr i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#b9a8ff,var(--vio))}
+.wk.weak .tr i{background:linear-gradient(90deg,#ffb3c4,var(--red))}
+.wk.best .tr i{background:linear-gradient(90deg,#9be9c9,var(--gr))}
+.wk .p{text-align:right;color:var(--mute)}
+.hint{margin-top:10px;font-size:12.5px;color:var(--mute);line-height:1.45;font-weight:600}
+.hint b{color:var(--text)}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 4px}
+.mini div{background:var(--card2);border-radius:14px;padding:10px;text-align:center}
+.mini b{display:block;font:800 16px Unbounded;color:#2a1f7a}
+.mini span{font-size:11px;color:var(--mute);font-weight:600}
+
+/* месяц */
+.mnav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 6px;text-align:center}
+.mnav .mt{font:800 18px Unbounded;color:#2a1f7a}
+.mnav .ms{font-size:12px;color:var(--mute);font-weight:600;margin-top:2px}
+.mnav .ibtn{font-size:22px;font-weight:700}
+.mnav .ibtn:disabled{opacity:.3;box-shadow:none}
+.mhero{text-align:center;margin:14px 0 16px}
+.mhero .dayl b{font-weight:800}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cw{text-align:center;font-size:10px;font-weight:700;color:var(--mute);text-transform:uppercase;padding-bottom:2px}
+.cd{aspect-ratio:1;border-radius:11px;background:#f3f0fd;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;line-height:1.1}
+.cd b{font-size:13px;font-weight:800}
+.cd small{font-size:9px;font-weight:700;opacity:.8}
+.cd i{font-style:normal;font-size:10px}
+.cd.fut{background:transparent;color:var(--dim);border:1px dashed #e3ddf8}
+.cd.now{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--vio)}
+.cd.open{cursor:pointer}
+.cd.open:active{transform:scale(.9)}
+.cd.pre{background:transparent;color:var(--dim)}
+.best{display:flex;align-items:center;gap:12px;margin-top:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 10%,#fff),#fff 70%)}
+.best .em{font-size:28px;width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 14%,#fff)}
+.best .l{font-size:11.5px;color:var(--mute);font-weight:700}
+.best b{font-size:15px}
+
+/* награды */
+.badges{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.bdg{padding:14px 8px 12px;border-radius:18px;text-align:center;background:var(--card);border:1px solid var(--line);position:relative;box-shadow:var(--sh)}
+.bdg .ic{width:56px;height:56px;margin:0 auto 8px;display:grid;place-items:center;font-size:26px;
+  clip-path:polygon(50% 0,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);background:#ece8fa}
+.bdg.on .ic{background:linear-gradient(160deg,#ffd43b,var(--gold) 35%,var(--pk) 75%,var(--vio))}
+.bdg.on{border-color:#ffe08a;background:linear-gradient(180deg,#fffaf0,#fff)}
+.bdg:not(.on) .ic{filter:grayscale(1);opacity:.55}
+.bdg .tt{font-size:12px;font-weight:800;line-height:1.2}
+.bdg .ds{font-size:10.5px;color:var(--mute);margin-top:4px;line-height:1.25;font-weight:600}
+.bdg .pg{height:4px;border-radius:3px;background:#ece8fa;margin:8px 6px 0;overflow:hidden}
+.bdg .pg i{display:block;height:100%;background:var(--vio)}
+.ranks{display:flex;flex-direction:column;gap:8px}
+.rank{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--card);border:1px solid var(--line);opacity:.55;font-weight:600}
+.rank.got{opacity:1}
+.rank.cur{border-color:var(--pk);box-shadow:0 0 0 2px rgba(236,63,162,.15),var(--sh);opacity:1}
+.rank .lv{font:800 11px Unbounded;color:var(--mute);width:54px}
+.rank .ri{font-size:22px}
+.rank .rn{font-weight:800;flex:1}
+
+/* нижняя навигация */
+.nav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + var(--safe-b));z-index:5;display:flex;gap:4px;padding:6px;
+  border-radius:22px;background:rgba(255,255,255,.86);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--line);
+  box-shadow:0 12px 34px -8px rgba(76,52,170,.3)}
+.nav button{border:0;background:transparent;color:var(--mute);font:700 12px Manrope;padding:9px 11px;white-space:nowrap;border-radius:16px;cursor:pointer;display:flex;gap:6px;align-items:center}
+.nav button.on{color:#fff;background:linear-gradient(135deg,var(--vio),var(--pk));box-shadow:0 6px 16px -4px rgba(109,74,255,.55)}
+
+/* шторка */
+.scrim{position:fixed;inset:0;z-index:10;background:rgba(40,28,100,.28);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .25s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:11;max-width:520px;margin:0 auto;padding:10px 18px calc(20px + var(--safe-b));
+  border-radius:26px 26px 0 0;background:#fff;transform:translateY(105%);transition:transform .32s cubic-bezier(.2,.9,.25,1);
+  box-shadow:0 -16px 50px rgba(40,28,100,.22);max-height:88vh;overflow-y:auto}
+.sheet.on{transform:none}
+.grab{width:40px;height:4px;border-radius:2px;background:#ddd7f3;margin:0 auto 14px}
+.sh-h{display:flex;align-items:center;gap:12px}
+.sh-h .em{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:26px;background:color-mix(in srgb,var(--c) 14%,#fff)}
+.sh-h .tt{font:700 17px Unbounded}
+.sh-h .sb{font-size:12.5px;color:var(--mute);margin-top:3px;font-weight:600}
+.big{font:900 40px Unbounded;text-align:center;margin:16px 0 2px;color:color-mix(in srgb,var(--c) 70%,#1d1840)}
+.big small{font-size:16px;color:var(--mute)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 0}
+.chip{border:1px solid color-mix(in srgb,var(--c) 35%,#fff);background:color-mix(in srgb,var(--c) 9%,#fff);color:color-mix(in srgb,var(--c) 75%,#000);
+  border-radius:14px;padding:11px 14px;font:800 15px Manrope;cursor:pointer;min-width:62px}
+.chip:active{transform:scale(.92);background:var(--c);color:#fff}
+.row{display:flex;gap:8px;margin-top:8px}
+.inp{flex:1;min-width:0;height:50px;border-radius:15px;border:1px solid var(--line);background:#f8f7fe;color:var(--text);
+  font:700 17px Manrope;padding:0 14px;outline:none}
+.inp:focus{border-color:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 20%,transparent);background:#fff}
+.inp.note{font-size:14px;font-weight:600;height:44px}
+.go{height:50px;padding:0 20px;border:0;border-radius:15px;font:800 15px Manrope;color:#fff;cursor:pointer;
+  background:linear-gradient(135deg,var(--c),color-mix(in srgb,var(--c) 60%,#ec3fa2));box-shadow:0 8px 18px -6px var(--c)}
+.ghost{width:100%;margin-top:12px;height:44px;border-radius:14px;border:1px dashed #d6cff5;background:transparent;color:var(--mute);font:700 13px Manrope;cursor:pointer}
+.big2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 6px}
+.big2 button{height:64px;border-radius:18px;font:800 16px Manrope;cursor:pointer;border:1px solid var(--line);background:var(--card2);color:var(--text)}
+.big2 button.y{border:0;color:#fff;background:linear-gradient(135deg,var(--c),color-mix(in srgb,var(--c) 60%,#ec3fa2));box-shadow:0 8px 20px -6px var(--c)}
+
+/* эффекты */
+#fx{position:fixed;inset:0;z-index:30;pointer-events:none}
+.float{position:fixed;z-index:31;pointer-events:none;font:900 18px Unbounded;color:#e67700;text-shadow:0 2px 0 #fff,0 0 12px rgba(255,255,255,.9);
+  animation:up 1.2s ease-out forwards}
+@keyframes up{0%{opacity:0;transform:translate(-50%,0) scale(.6)}15%{opacity:1;transform:translate(-50%,-10px) scale(1.15)}100%{opacity:0;transform:translate(-50%,-80px) scale(1)}}
+.ovl{position:fixed;inset:0;z-index:25;display:grid;place-items:center;
+  background:radial-gradient(circle at 50% 42%,rgba(255,255,255,.97),rgba(240,236,255,.95) 55%,rgba(220,212,255,.96));
+  opacity:0;pointer-events:none;transition:opacity .3s}
+.ovl.on{opacity:1;pointer-events:auto}
+.ovl .box{text-align:center;padding:24px;transform:scale(.7);transition:transform .5s cubic-bezier(.2,1.6,.4,1)}
+.ovl.on .box{transform:none}
+.ovl .k{font:700 12px Unbounded;letter-spacing:4px;color:var(--vio)}
+.ovl .h{font:900 38px/1.05 Unbounded;margin:12px 0;background:linear-gradient(180deg,#3b2a9e,var(--vio) 50%,var(--pk));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.ovl .ic{font-size:80px;filter:drop-shadow(0 10px 24px rgba(245,159,0,.45));animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.08)}}
+.ovl .s{color:var(--mute);font-size:15px;max-width:280px;margin:0 auto;font-weight:600}
+.ovl .tap{margin-top:26px;font-size:12px;color:var(--dim)}
+.toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-140%);z-index:40;padding:10px 16px;border-radius:14px;
+  background:#fff;border:1px solid var(--line);font-size:13px;font-weight:700;transition:transform .3s;max-width:90vw;box-shadow:0 10px 30px -8px rgba(76,52,170,.35)}
+.toast.on{transform:translate(-50%,0)}
+.demo{font-size:11px;text-align:center;color:var(--dim);margin-top:18px;font-weight:600}
+.load{display:grid;place-items:center;height:60vh;color:var(--mute);font:700 13px Unbounded;letter-spacing:2px}
+.spin{width:54px;height:54px;border-radius:50%;border:3px solid #e4ddff;border-top-color:var(--vio);animation:sp 1s linear infinite;margin:0 auto 18px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.fade{animation:fi .45s ease both}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div class="nebula"></div>
+<div id="app"><div class="load"><div><div class="spin"></div>ЗАГРУЗКА…</div></div></div>
+<nav class="nav" id="nav" hidden>
+  <button data-t="today" class="on">🪐 Сегодня</button>
+  <button data-t="month">📅 Месяц</button>
+  <button data-t="stats">📈 Статы</button>
+  <button data-t="awards">🏆 Награды</button>
+</nav>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"></div>
+<div class="ovl" id="ovl"><div class="box" id="ovlBox"></div></div>
+<canvas id="fx"></canvas>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+// ═══════════════════════ окружение ═══════════════════════
+const tg = window.Telegram && window.Telegram.WebApp;
+const Q = new URLSearchParams(location.search);
+const API = Q.get('api') || '';
+const DEMO = !API || !tg || !tg.initData || Q.has('demo');
+const PAL = ['#6d4aff', '#00a5d6', '#ec3fa2', '#12b886', '#f59f00', '#f03e5e', '#3b6cff', '#a855f7', '#0ca678', '#fd7e14'];
+const RANKS = [[1, '🌱', 'Искра'], [3, '🛰', 'Кадет'], [6, '🚀', 'Пилот'], [10, '🌙', 'Странник'], [15, '🪐', 'Навигатор'],
+  [20, '☄️', 'Командор'], [30, '🌟', 'Звёздный рыцарь'], [40, '🌌', 'Архитектор галактик'], [55, '👁', 'Хранитель'], [75, '♾️', 'Бессмертный']];
+
+if (tg) {
+  try {
+    tg.ready(); tg.expand();
+    tg.setHeaderColor && tg.setHeaderColor('#f6f4ff');
+    tg.setBackgroundColor && tg.setBackgroundColor('#f6f4ff');
+    tg.disableVerticalSwipes && tg.disableVerticalSwipes();
+  } catch (e) {}
+}
+const hap = {
+  tap() { try { tg.HapticFeedback.impactOccurred('light'); } catch (e) {} },
+  hit() { try { tg.HapticFeedback.impactOccurred('medium'); } catch (e) {} },
+  ok() { try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {} },
+  err() { try { tg.HapticFeedback.notificationOccurred('error'); } catch (e) {} },
+};
+const store = {
+  get(k) { try { return localStorage.getItem('ht_' + k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem('ht_' + k, v); } catch (e) {} },
+};
+
+// ═══════════════════════ даты ═══════════════════════
+const D = s => new Date(s + 'T12:00:00Z');
+const K = d => d.toISOString().slice(0, 10);
+const addDays = (k, n) => K(new Date(D(k).getTime() + n * 864e5));
+const wday = k => ((D(k).getUTCDay() + 6) % 7) + 1;           // 1 = пн
+const monday = k => addDays(k, 1 - wday(k));
+const WD = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+const MON = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const WDF = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+const human = k => WDF[wday(k) - 1] + ', ' + D(k).getUTCDate() + ' ' + MON[D(k).getUTCMonth()];
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = v => String(Math.round(v * 10) / 10).replace('.', ',');
+const plural = (n, a, b, c) => { n = Math.abs(n) % 100; const m = n % 10; return n > 10 && n < 20 ? c : m > 1 && m < 5 ? b : m === 1 ? a : c; };
+
+// ═══════════════════════ состояние ═══════════════════════
+let S = null;          // данные из таблицы
+let M = null;          // посчитанная модель
+let SEL = null;        // выбранный день
+let TAB = 'today';
+
+function splitName(n) {
+  const m = String(n).match(/^((?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|‍|\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s*(.*)$/u);
+  return m ? { emoji: m[1], title: m[2] || n } : { emoji: '✦', title: n };
+}
+
+// ═══════════════════════ расчёт: опыт, стрики, достижения ═══════════════════════
+function compute(S) {
+  const T = S.today, cap = S.cap || 1.5;
+  const habits = S.habits.map((h, i) => Object.assign({}, h, splitName(h.name), { i, color: PAL[i % PAL.length], daily: h.perWeek >= 7 }));
+  const gcs = (S.goalChanges || []).slice().sort((a, b) => a.from < b.from ? -1 : 1);
+  const goalOn = (h, k) => { let g = h.goal; gcs.forEach(c => { if (c.name === h.name && c.from <= k) g = c.goal; }); return g; };
+  const active = (h, k) => (!h.start || k >= h.start) && (!h.pause || k < h.pause) && goalOn(h, k) > 0;
+  const val = (h, k) => Number((S.log[k] || {})[h.name]) || 0;
+  const marked = (h, k) => S.log[k] && (h.name in S.log[k]);
+  const done = (h, k) => active(h, k) && val(h, k) >= goalOn(h, k);
+
+  let first = T;
+  Object.keys(S.log).forEach(k => { if (k < first) first = k; });
+  habits.forEach(h => { if (h.start && h.start < first) first = h.start; });
+  if (first < addDays(T, -1500)) first = addDays(T, -1500);
+
+  const day = {};
+  const run = {}, maxRun = {};
+  let xp = 0, perfectN = 0, pRun = 0, pMax = 0, aRun = 0, aMax = 0, totalMin = 0, maxDayMin = 0, bestPct = 0, perfectWeeks = 0, daysAny = 0, entries = 0;
+  const weekXp = {};
+  for (let k = first; k <= T; k = addDays(k, 1)) {
+    let sum = 0, n = 0, all = true, dx = 0, mins = 0, any = false;
+    habits.forEach(h => {
+      const v = val(h, k);
+      if (v > 0) { any = true; entries++; if (h.unit === 'мин') mins += v; }
+      if (!active(h, k)) return;
+      const g = goalOn(h, k);
+      if (h.daily) {
+        const r = Math.max(0, Math.min(cap, v / g));
+        sum += r; n++;
+        if (v > 0) dx += Math.round(r * 50);
+        if (v >= g) {
+          dx += 25;
+          run[h.name] = (run[h.name] || 0) + 1;
+          if (run[h.name] % 7 === 0) dx += 70;
+          maxRun[h.name] = Math.max(maxRun[h.name] || 0, run[h.name]);
+        } else { all = false; if (k !== T) run[h.name] = 0; }
+      } else if (v >= g) dx += 60;
+    });
+    const pct = n ? sum / n : null;
+    const perfect = n > 0 && all;
+    if (perfect) { dx += 100; perfectN++; pRun++; pMax = Math.max(pMax, pRun); } else if (k !== T) pRun = 0;
+    if (any) { daysAny++; aRun++; aMax = Math.max(aMax, aRun); } else if (k !== T) aRun = 0;
+    if (pct !== null) bestPct = Math.max(bestPct, pct);
+    totalMin += mins; maxDayMin = Math.max(maxDayMin, mins);
+    day[k] = { pct, perfect, xp: dx, mins, any };
+    xp += dx;
+    const mk = monday(k);
+    weekXp[mk] = (weekXp[mk] || 0) + dx;
+    if (wday(k) === 7) {                                         // закрытая неделя
+      let ok = true, act = 0;
+      habits.forEach(h => {
+        const ds = []; for (let i = 0; i < 7; i++) ds.push(addDays(mk, i));
+        const actDays = ds.filter(x => active(h, x));
+        if (!actDays.length) return;
+        act++;
+        if (h.daily) { if (!actDays.every(x => done(h, x))) ok = false; }
+        else if (ds.filter(x => done(h, x)).length < Math.min(h.perWeek, actDays.length)) ok = false;
+      });
+      if (ok && act) { perfectWeeks++; xp += 500; day[k].xp += 500; day[k].perfectWeek = true; }
+    }
+  }
+
+  // текущие стрики (сегодня ещё можно закрыть — стрик не обнуляется)
+  habits.forEach(h => {
+    h.goalT = (k) => goalOn(h, k);
+    if (h.daily) {
+      let k = done(h, T) ? T : addDays(T, -1), s = 0;
+      while (k >= first && done(h, k)) { s++; k = addDays(k, -1); }
+      h.streak = s; h.unitStreak = 'дн';
+    } else {
+      const cnt = mk => { let c = 0; for (let i = 0; i < 7; i++) if (done(h, addDays(mk, i))) c++; return c; };
+      let mk = monday(T), s = 0;
+      if (cnt(mk) < h.perWeek) mk = addDays(mk, -7);
+      while (mk >= monday(first) && cnt(mk) >= h.perWeek) { s++; mk = addDays(mk, -7); }
+      h.streak = s; h.unitStreak = 'нед';
+      h.weekCount = k => cnt(monday(k));
+    }
+    h.maxStreak = maxRun[h.name] || 0;
+    let s30 = 0, n30 = 0;
+    for (let i = 0; i < 30; i++) {
+      const k = addDays(T, -i); if (!active(h, k)) continue;
+      n30++; s30 += h.daily ? Math.min(1, val(h, k) / goalOn(h, k)) : (val(h, k) >= goalOn(h, k) ? 1 : 0);
+    }
+    h.pct30 = n30 ? (h.daily ? s30 / n30 : Math.min(1, s30 / (n30 / 7 * h.perWeek))) : null;
+  });
+
+  const lvl = levelOf(xp);
+  const maxStreakAll = Math.max(0, ...Object.values(maxRun));
+  const stats = { xp, lvl: lvl.L, perfectN, pMax, aMax, totalH: totalMin / 60, maxDayMin, bestPct, perfectWeeks, daysAny, entries, maxStreakAll };
+  return { T, cap, habits, day, xp, lvl, stats, first, weekXp, val, marked, active, goalOn, done, statusOf: p => statusOf(S.statuses, p) };
+}
+
+function need(L) { return 300 + 120 * (L - 1); }
+function levelOf(xp) { let L = 1, acc = 0; while (xp >= acc + need(L)) { acc += need(L); L++; } return { L, into: xp - acc, need: need(L) }; }
+function rankOf(L) { let r = RANKS[0]; RANKS.forEach(x => { if (L >= x[0]) r = x; }); return r; }
+function statusOf(st, p) {
+  if (p === null || p === undefined) return '';
+  let s = ''; (st || []).slice().sort((a, b) => a[0] - b[0]).forEach(x => { if (p + 1e-9 >= x[0]) s = x[1]; }); return s;
+}
+
+const ACH = [
+  ['first', '✨', 'Первый шаг', 'Первая запись', s => s.entries, 1],
+  ['p1', '🌟', 'Идеальный день', 'Закрыть все ежедневные цели', s => s.perfectN, 1],
+  ['combo3', '⚡', 'Комбо ×3', '3 идеальных дня подряд', s => s.pMax, 3],
+  ['w1', '👑', 'Идеальная неделя', '7 из 7 и все недельные цели', s => s.perfectWeeks, 1],
+  ['st7', '🔥', 'В огне', 'Стрик привычки 7 дней', s => s.maxStreakAll, 7],
+  ['st30', '☄️', 'Метеор', 'Стрик привычки 30 дней', s => s.maxStreakAll, 30],
+  ['st100', '🌋', 'Вулкан', 'Стрик привычки 100 дней', s => s.maxStreakAll, 100],
+  ['p10', '💫', 'Созвездие', '10 идеальных дней', s => s.perfectN, 10],
+  ['p50', '🌌', 'Галактика', '50 идеальных дней', s => s.perfectN, 50],
+  ['h10', '⏳', '10 часов', 'Всего вложено в себя', s => s.totalH, 10],
+  ['h100', '🕰', '100 часов', 'Всего вложено в себя', s => s.totalH, 100],
+  ['h500', '🏛', '500 часов', 'Путь мастера', s => s.totalH, 500],
+  ['mar', '🏃', 'Марафон', '4 часа занятий за день', s => s.maxDayMin / 60, 4],
+  ['inf', '♾️', 'INFINITY', 'День на 120%+ цели', s => s.bestPct * 100, 120],
+  ['uni', '🪐', 'UNIVERSE', 'День на 140%+ цели', s => s.bestPct * 100, 140],
+  ['nw14', '🛡', 'Без выходных', '14 дней подряд с записями', s => s.aMax, 14],
+  ['vet', '🎖', 'Ветеран', '30 дней с записями', s => s.daysAny, 30],
+  ['l10', '🚀', 'Уровень 10', 'Прокачка персонажа', s => s.lvl, 10],
+  ['l25', '🛸', 'Уровень 25', 'Прокачка персонажа', s => s.lvl, 25],
+  ['l50', '👁', 'Уровень 50', 'Ты легенда', s => s.lvl, 50],
+];
+const achDone = st => ACH.filter(a => a[4](st) >= a[5]).map(a => a[0]);
+
+// ═══════════════════════ API ═══════════════════════
+async function api(action, extra) {
+  if (DEMO) return demoApi(action, extra);
+  const url = API + (API.indexOf('?') >= 0 ? '&' : '?') + 'api=1';
+  const r = await fetch(url, { method: 'POST', body: JSON.stringify(Object.assign({ action, initData: tg.initData }, extra || {})) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Ошибка сервера');
+  return j;
+}
+
+// ═══════════════════════ отрисовка ═══════════════════════
+const $ = s => document.querySelector(s);
+function ringSvg(p, size, sw, color, track) {
+  const r = (size - sw) / 2, c = 2 * Math.PI * r, o = c * (1 - Math.max(0, Math.min(1, p || 0)));
+  return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${track || '#ebe7fb'}" stroke-width="${sw}"/>` +
+    `<circle class="ring" cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${o}" transform="rotate(-90 ${size / 2} ${size / 2})"/></svg>`;
+}
+
+function render() {
+  M = compute(S);
+  if (!SEL || SEL > M.T) SEL = M.T;
+  if (TAB === 'today') renderToday();
+  else if (TAB === 'month') renderMonth();
+  else if (TAB === 'stats') renderStats();
+  else renderAwards();
+  $('#nav').hidden = false;
+}
+
+function userName() {
+  const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  return (u && (u.first_name || u.username)) || 'Герой';
+}
+
+function renderTop() {
+  const l = M.lvl, rk = rankOf(l.L), nm = userName();
+  const p = l.into / l.need, r = 26, c = 2 * Math.PI * r;
+  return `
+  <div class="top">
+    <div class="ava">
+      <svg viewBox="0 0 58 58"><defs><linearGradient id="gx" x1="0" x2="1"><stop offset="0" stop-color="#6d4aff"/><stop offset=".6" stop-color="#ec3fa2"/><stop offset="1" stop-color="#f59f00"/></linearGradient></defs>
+      <circle cx="29" cy="29" r="${r}" fill="none" stroke="#e9e5fb" stroke-width="4"/>
+      <circle class="ring" cx="29" cy="29" r="${r}" fill="none" stroke="url(#gx)" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p)}"/></svg>
+      <div class="in">${esc(nm.slice(0, 1).toUpperCase())}</div><div class="lv">${l.L}</div>
+    </div>
+    <div class="who">
+      <div class="nm">${esc(nm)}</div>
+      <div class="rk">${rk[1]} ${rk[2]} · уровень ${l.L}</div>
+      <div class="xpbar"><i style="width:${(p * 100).toFixed(1)}%"></i></div>
+      <div class="xptx">${l.into} / ${l.need} XP · всего ${M.xp.toLocaleString('ru')}</div>
+    </div>
+    <button class="ibtn" id="undo" title="Отменить последнюю запись">↩︎</button>
+  </div>`;
+}
+
+function renderToday() {
+  const k = SEL, T = M.T, info = M.day[k] || { pct: null };
+  const list = M.habits.filter(h => M.active(h, k));
+  const daily = list.filter(h => h.daily);
+  // герой: кольца ежедневных привычек
+  const N = Math.min(daily.length, 6), base = 152, sw = N > 4 ? 8 : 10, gap = sw + 4;
+  let rings = '';
+  daily.slice(0, 6).forEach((h, i) => {
+    const r = base - i * gap, c = 2 * Math.PI * r, p = Math.min(1, M.val(h, k) / M.goalOn(h, k));
+    rings += `<circle cx="160" cy="160" r="${r}" fill="none" stroke="${h.color}" stroke-opacity=".13" stroke-width="${sw}"/>` +
+      `<circle class="ring" cx="160" cy="160" r="${r}" fill="none" stroke="${h.color}" stroke-width="${sw}" stroke-linecap="round"
+        stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p)}" transform="rotate(-90 160 160)" />`;
+  });
+  const pct = info.pct, st = M.statusOf(pct);
+  const stM = st.match(/^(.*?)\s*\((.*)\)\s*$/);       // «📊 MASTER (SKILLED)» → две строки
+  const stHtml = !st ? '' : stM ? `<div class="stat">${esc(stM[1])}<small>${esc(stM[2])}</small></div>` : `<div class="stat">${esc(st)}</div>`;
+  const inner = base - (Math.max(1, N) - 1) * gap - sw / 2 - 8;   // радиус свободного центра внутри колец
+  const center = pct === null ? `<div class="pct">—</div>` : `<div class="pct">${Math.round(pct * 100)}<small>%</small></div>`;
+  // полоса недели (последние 7 дней)
+  let week = '';
+  for (let i = 6; i >= 0; i--) {
+    const d = addDays(T, -i), di = M.day[d] || {};
+    week += `<div class="wd ${d === k ? 'sel' : ''}" data-day="${d}">
+      ${di.perfect ? '<span class="star">⭐</span>' : ''}
+      <div class="a">${d === T ? 'сег' : WD[wday(d) - 1]}</div><div class="b">${D(d).getUTCDate()}</div>
+      ${ringSvg(di.pct === null || di.pct === undefined ? 0 : Math.min(1, di.pct), 24, 4, di.perfect ? '#f59f00' : '#6d4aff')}
+    </div>`;
+  }
+  const cards = list.map(h => habCard(h, k)).join('') || `<div class="empty">Нет активных привычек на этот день.<br>Добавьте их в Настройках таблицы.</div>`;
+  $('#app').innerHTML = renderTop() + `
+  <div class="fade">
+    <div class="hero">
+      <svg viewBox="0 0 320 320"><defs><filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.2" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${rings || '<circle cx="160" cy="160" r="140" fill="none" stroke="#ebe7fb" stroke-width="12"/>'}</svg>
+      <div class="ctr"><div style="max-width:${(inner * 2 / 320 * 100).toFixed(1)}%;width:100%">${center}${stHtml}
+        <div class="dayl">${k === T ? 'сегодня' : esc(human(k))}${info.perfect ? ' · ⭐ идеальный' : ''}</div></div></div>
+    </div>
+    <div class="week">${week}</div>
+    <div class="sec"><h3>${k === T ? 'КВЕСТЫ ДНЯ' : 'ЗАПИСИ ЗА ' + D(k).getUTCDate() + ' ' + MON[D(k).getUTCMonth()].toUpperCase()}</h3>
+      <span>${info.xp ? '+' + info.xp + ' XP' : ''}</span></div>
+    ${cards}
+    ${DEMO ? '<div class="demo">Демо-режим: данные выдуманы и хранятся только здесь</div>' : ''}
+  </div>`;
+  bindTop();
+  document.querySelectorAll('.wd').forEach(el => el.onclick = () => { hap.tap(); SEL = el.dataset.day; renderToday(); });
+  document.querySelectorAll('.hab').forEach(el => el.onclick = e => {
+    const h = M.habits[Number(el.dataset.i)];
+    if (e.target.closest('.qk')) { quick(h, e.target.closest('.qk')); return; }
+    openSheet(h);
+  });
+}
+
+function habCard(h, k) {
+  const v = M.val(h, k), g = M.goalOn(h, k), isDone = v >= g, p = Math.min(1, v / g);
+  const fire = h.streak && k === M.T ? `<span class="fire">🔥 ${h.streak} ${h.unitStreak}</span>` : '';
+  let mid, btn;
+  if (h.type === 'да-нет') {
+    mid = `<div class="v">${isDone ? '<b>сделано</b>' : M.marked(h, k) ? 'пропуск' : 'ещё не отмечено'}${h.daily ? '' : ' · неделя ' + h.weekCount(k) + '/' + h.perWeek}</div>`;
+    btn = `<button class="qk ${isDone ? 'ok' : ''}" data-v="${isDone ? -v : 1}">${isDone ? '✓' : '○'}</button>`;
+  } else {
+    const q = h.type === 'количество' ? 1 : (g >= 45 ? 30 : 15);
+    mid = `<div class="v"><b>${fmt(v)}</b> / ${fmt(g)} ${esc(h.unit)}${h.daily ? '' : ' · засчитывается от ' + fmt(g)}</div>`;
+    btn = `<button class="qk" data-v="${q}">+${q}</button>`;
+  }
+  const prog = h.daily
+    ? `<div class="bar"><i class="${v > g ? 'over' : ''}" style="width:${(p * 100).toFixed(1)}%"></i></div>`
+    : `<div class="dots">${Array.from({ length: h.perWeek }, (_, i) => `<i class="${i < h.weekCount(k) ? 'on' : ''}"></i>`).join('')}</div>`;
+  return `<div class="hab ${isDone ? 'done' : ''}" style="--c:${h.color}" data-i="${h.i}">
+    <div class="em">${h.emoji}</div>
+    <div class="bd"><div class="t"><b>${esc(h.title)}</b>${fire}</div>${mid}${prog}</div>${btn}</div>`;
+}
+
+function bindTop() {
+  const u = $('#undo');
+  if (u) u.onclick = () => {
+    hap.hit();
+    if (tg && tg.showConfirm && !DEMO) {
+      tg.showConfirm('Отменить последнюю запись из бота или мини-аппа?', ok => { if (ok) doUndo(); });
+    } else doUndo();
+  };
+}
+
+function doUndo() { toast('Отменяю…'); enqueue('undo'); }
+
+// ─── статистика ───
+function renderStats() {
+  const st = M.stats, T = M.T;
+  const kpi = (n, l) => `<div class="kpi"><div class="l">${l}</div><div class="n">${n}</div></div>`;
+  // недельные столбики: 12 недель
+  const weeks = [];
+  for (let i = 11; i >= 0; i--) {
+    const mk = addDays(monday(T), -7 * i); let s = 0, n = 0;
+    for (let j = 0; j < 7; j++) { const d = M.day[addDays(mk, j)]; if (d && d.pct !== null && d.pct !== undefined) { s += d.pct; n++; } }
+    weeks.push({ mk, p: n ? s / n : null });
+  }
+  const W = 320, H = 150, bw = W / 12;
+  const mx = Math.max(1, ...weeks.map(w => w.p || 0));
+  let bars = `<line x1="0" x2="${W}" y1="${H - H / mx}" y2="${H - H / mx}" stroke="#f59f00" stroke-opacity=".7" stroke-dasharray="4 4"/>`;
+  weeks.forEach((w, i) => {
+    const h = (w.p || 0) / mx * (H - 4);
+    bars += `<rect x="${i * bw + 4}" y="${H - h}" width="${bw - 8}" height="${h}" rx="5" fill="url(#bg)" ${i === 11 ? '' : 'opacity=".6"'}/>` +
+      `<text x="${i * bw + bw / 2}" y="${H + 14}" font-size="9" fill="#a29fc0" text-anchor="middle">${D(w.mk).getUTCDate()}.${String(D(w.mk).getUTCMonth() + 1).padStart(2, '0')}</text>`;
+  });
+  // тепловая карта: 20 недель
+  const start = addDays(monday(T), -7 * 19);
+  let heat = '';
+  for (let i = 0; i < 140; i++) {
+    const d = addDays(start, i), di = M.day[d];
+    let bg = '#efecfb', sh = '';
+    if (d > T) bg = 'transparent';
+    else if (di && di.pct !== null && di.pct !== undefined) {
+      const p = Math.min(1, di.pct);
+      bg = di.perfect ? '#f59f00' : `rgba(109,74,255,${(0.15 + p * 0.8).toFixed(2)})`;
+      if (di.perfect) sh = 'box-shadow:0 2px 6px rgba(245,159,0,.5)';
+      
+    }
+    heat += `<i style="background:${bg};${sh}" title="${d}"></i>`;
+  }
+  const rows = M.habits.filter(h => M.active(h, T)).map(h => `<div class="hrow" data-i="${h.i}">
+      <span style="font-size:20px">${h.emoji}</span><span class="nm">${esc(h.title)}</span>
+      <span class="mx">${h.daily ? 'рекорд ' + h.maxStreak + ' дн' : 'серия ' + h.streak + ' нед'}</span>
+      <span class="pc" style="color:${h.color}">${h.pct30 === null ? '—' : Math.round(h.pct30 * 100) + '%'}</span><span class="ar">›</span></div>`).join('');
+  // дни недели: средний % за 8 недель, только закрытые дни
+  const wk = [0, 0, 0, 0, 0, 0, 0].map(() => ({ s: 0, n: 0 }));
+  for (let i = 1; i <= 56; i++) {
+    const d = addDays(T, -i), di = M.day[d];
+    if (di && di.pct !== null && di.pct !== undefined) { wk[wday(d) - 1].s += Math.min(1, di.pct); wk[wday(d) - 1].n++; }
+  }
+  const wp = wk.map(x => x.n ? x.s / x.n : null);
+  const have = wp.filter(x => x !== null);
+  let wkHtml = '<div class="empty" style="padding:14px">Появится через неделю записей</div>';
+  if (have.length >= 7) {
+    const lo = Math.min(...have), hi = Math.max(...have);
+    const iLo = wp.indexOf(lo), iHi = wp.indexOf(hi);
+    wkHtml = wp.map((p, i) => `<div class="wk ${i === iLo && hi - lo > .05 ? 'weak' : i === iHi && hi - lo > .05 ? 'best' : ''}"><span>${WD[i]}</span>
+      <div class="tr"><i style="width:${((p || 0) * 100).toFixed(0)}%"></i></div><span class="p">${p === null ? '—' : Math.round(p * 100) + '%'}</span></div>`).join('') +
+      (hi - lo > .05 ? `<div class="hint">Слабое место — <b>${WDF[iLo].toLowerCase()}</b> (${Math.round(lo * 100)}%), лучший день — <b>${WDF[iHi].toLowerCase()}</b> (${Math.round(hi * 100)}%). Спланируйте слабый день заранее: время и место для каждой привычки.</div>` : '<div class="hint">Все дни недели ровные — отлично.</div>');
+  }
+  $('#app').innerHTML = renderTop() + `<div class="fade">
+    <div class="kpis">
+      ${kpi(fmt(st.totalH) + '<small style="font-size:13px"> ч</small>', '⏱ Вложено часов')}
+      ${kpi(st.perfectN, '⭐ Идеальных дней')}
+      ${kpi(st.maxStreakAll + '<small style="font-size:13px"> дн</small>', '🔥 Лучший стрик')}
+      ${kpi(st.perfectWeeks, '👑 Идеальных недель')}
+    </div>
+    <div class="sec"><h3>ВЫПОЛНЕНИЕ ПО НЕДЕЛЯМ</h3><span>12 недель</span></div>
+    <div class="panel"><svg viewBox="0 -6 ${W} ${H + 24}" style="width:100%;display:block">
+      <defs><linearGradient id="bg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#6d4aff"/><stop offset="1" stop-color="#00b4d8"/></linearGradient>
+      <filter id="gl2"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${bars}</svg>
+      <div class="legend"><i style="background:#f59f00;height:2px"></i> 100% цели</div></div>
+    <div class="sec"><h3>КАРТА ДНЕЙ</h3><span>20 недель</span></div>
+    <div class="panel"><div class="heat">${heat}</div>
+      <div class="legend">меньше <i style="background:rgba(109,74,255,.2)"></i><i style="background:rgba(109,74,255,.55)"></i><i style="background:rgba(109,74,255,.95)"></i><i style="background:#f59f00"></i> идеально</div></div>
+    <div class="sec"><h3>ДНИ НЕДЕЛИ</h3><span>8 недель</span></div>
+    <div class="panel">${wkHtml}</div>
+    <div class="sec"><h3>ПРИВЫЧКИ</h3><span>за 30 дней · нажмите</span></div>
+    <div class="panel">${rows || '<div class="empty">Нет активных привычек</div>'}</div>
+  </div>`;
+  bindTop();
+  document.querySelectorAll('.hrow').forEach(el => el.onclick = () => openDetail(M.habits[Number(el.dataset.i)]));
+}
+
+/** Детали привычки: 30 дней значений с линией цели. */
+function openDetail(h) {
+  hap.tap();
+  const T = M.T, days = [];
+  for (let i = 29; i >= 0; i--) days.push(addDays(T, -i));
+  const vals = days.map(d => M.active(h, d) ? M.val(h, d) : null);
+  const goals = days.map(d => M.goalOn(h, d));
+  const act = vals.filter(v => v !== null);
+  const mx = Math.max(1, ...act, ...goals) * 1.08;
+  const W = 320, H = 140, bw = W / 30;
+  let svg = '';
+  days.forEach((d, i) => {
+    const v = vals[i];
+    if (v === null) return;
+    const hh = Math.max(v > 0 ? 3 : 0, v / mx * H), ok = v >= goals[i];
+    svg += `<rect x="${i * bw + 1.5}" y="${H - hh}" width="${bw - 3}" height="${hh}" rx="3" fill="${h.color}" opacity="${ok ? 1 : .4}"/>`;
+  });
+  let path = '';
+  days.forEach((d, i) => { const y = H - goals[i] / mx * H; path += (i ? 'L' : 'M') + (i * bw) + ' ' + y + 'H' + ((i + 1) * bw); });
+  svg += `<path d="${path}" fill="none" stroke="#f59f00" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  [0, 10, 20, 29].forEach(i => { svg += `<text x="${i * bw + bw / 2}" y="${H + 13}" font-size="9" fill="#a29fc0" text-anchor="middle">${D(days[i]).getUTCDate()}.${String(D(days[i]).getUTCMonth() + 1).padStart(2, '0')}</text>`; });
+  const doneN = days.filter((d, i) => vals[i] !== null && vals[i] >= goals[i]).length;
+  const sum = act.reduce((a, b) => a + b, 0);
+  const sh = $('#sheet');
+  sh.style.setProperty('--c', h.color);
+  sh.innerHTML = `<div class="grab"></div><div class="sh-h"><div class="em">${h.emoji}</div><div><div class="tt">${esc(h.title)}</div>
+    <div class="sb">последние 30 дней · цель ${fmt(M.goalOn(h, T))} ${esc(h.unit)}${h.daily ? ' в день' : ', ' + h.perWeek + ' р/нед'}</div></div></div>
+    <div class="mini">
+      <div><b>${doneN}</b><span>${h.daily ? 'дней с целью' : 'подходов'}</span></div>
+      <div><b>${fmt(h.unit === 'мин' ? sum / 60 : sum)}</b><span>${h.unit === 'мин' ? 'часов всего' : 'всего, ' + esc(h.unit)}</span></div>
+      <div><b>${h.streak}</b><span>серия, ${h.unitStreak}</span></div>
+    </div>
+    <svg viewBox="0 -4 ${W} ${H + 20}" style="width:100%;display:block;margin-top:10px">${svg}</svg>
+    <div class="legend"><i style="background:${h.color}"></i> цель выполнена <i style="background:${h.color};opacity:.4"></i> частично <i style="background:#f59f00;height:2px"></i> цель</div>
+    <button class="ghost" id="closeD">Закрыть</button>`;
+  sh.querySelector('#closeD').onclick = closeSheet;
+  $('#scrim').classList.add('on'); sh.classList.add('on');
+  if (tg && tg.BackButton) { tg.BackButton.show(); tg.BackButton.onClick(closeSheet); }
+}
+
+// ─── месяц ───
+const MONN = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+let MK = null;                                             // 'yyyy-mm-01' показываемого месяца
+const monthStart = k => k.slice(0, 8) + '01';
+const prevMonth = m => monthStart(addDays(m, -1));
+const nextMonth = m => monthStart(addDays(m, 32));
+
+/** Итоги календарного месяца. Открытый сегодняшний день учитывается в %, только если он уже на 100%+ (как в таблице). */
+function monthStats(m) {
+  const T = M.T, days = [];
+  for (let k = m; k.slice(0, 7) === m.slice(0, 7); k = addDays(k, 1)) days.push(k);
+  const past = days.filter(k => k <= T);
+  const closed = past.filter(k => { const d = M.day[k]; return d && d.pct !== null && d.pct !== undefined && (k < T || d.pct >= 1); });
+  const pct = closed.length ? closed.reduce((a, k) => a + M.day[k].pct, 0) / closed.length : null;
+  const sum = f => past.reduce((a, k) => a + (M.day[k] ? f(M.day[k]) : 0), 0);
+  const habits = M.habits.map(h => {
+    const act = past.filter(k => M.active(h, k) && (k < T || M.done(h, k)));
+    if (!act.length) return null;
+    let p;
+    if (h.daily) p = act.reduce((a, k) => a + Math.max(0, Math.min(M.cap, M.val(h, k) / M.goalOn(h, k))), 0) / act.length;
+    else p = Math.min(M.cap, act.filter(k => M.done(h, k)).length / Math.max(1, act.length / 7 * h.perWeek));
+    const total = past.reduce((a, k) => a + M.val(h, k), 0);
+    return { h, p, total, doneN: act.filter(k => M.done(h, k)).length };
+  }).filter(Boolean);
+  const best = habits.slice().sort((a, b) => b.p - a.p)[0];
+  return {
+    days, pct, counted: closed.length, perfect: past.filter(k => M.day[k] && M.day[k].perfect).length,
+    perfectWeeks: past.filter(k => M.day[k] && M.day[k].perfectWeek).length,
+    hours: sum(d => d.mins) / 60, xp: sum(d => d.xp), activeDays: past.filter(k => M.day[k] && M.day[k].any).length,
+    habits, best,
+  };
+}
+
+function renderMonth() {
+  const T = M.T;
+  if (!MK) MK = monthStart(T);
+  const firstData = monthStart(M.first);
+  const s = monthStats(MK), pv = monthStats(prevMonth(MK));
+  const d0 = D(MK), title = MONN[d0.getUTCMonth()] + ' ' + d0.getUTCFullYear();
+  const st = M.statusOf(s.pct);
+  const delta = s.pct !== null && pv.pct !== null ? Math.round((s.pct - pv.pct) * 100) : null;
+  // календарь
+  let cal = WD.map(w => `<div class="cw">${w}</div>`).join('');
+  for (let i = 1; i < wday(MK); i++) cal += '<div></div>';
+  s.days.forEach(k => {
+    const di = M.day[k] || {}, fut = k > T, has = di.pct !== null && di.pct !== undefined;
+    const p = has ? Math.min(1, di.pct) : 0;
+    const bg = fut || !has ? '' : di.perfect ? 'background:linear-gradient(140deg,#ffd43b,#f59f00);color:#fff' :
+      `background:rgba(109,74,255,${(0.08 + p * 0.72).toFixed(2)});${p > .55 ? 'color:#fff' : ''}`;
+    const canOpen = !fut && k >= addDays(T, -62);
+    cal += `<div class="cd ${fut ? 'fut' : ''} ${k < M.first ? 'pre' : ''} ${k === T ? 'now' : ''} ${canOpen ? 'open' : ''}" style="${bg}" ${canOpen ? `data-day="${k}"` : ''}>
+      <b>${D(k).getUTCDate()}</b>${di.perfect ? '<i>⭐</i>' : has && !fut ? `<small>${Math.round(di.pct * 100)}</small>` : ''}</div>`;
+  });
+  const kpi = (n, l, sub) => `<div class="kpi"><div class="l">${l}</div><div class="n">${n}</div>${sub ? `<div class="l" style="margin-top:3px">${sub}</div>` : ''}</div>`;
+  const rows = s.habits.map(x => `<div class="hrow" data-i="${x.h.i}">
+      <span style="font-size:20px">${x.h.emoji}</span><span class="nm">${esc(x.h.title)}</span>
+      <span class="mx">${x.h.daily ? x.doneN + ' дн с целью' : x.doneN + ' подх.'}${x.h.unit === 'мин' ? ' · ' + fmt(x.total / 60) + ' ч' : ''}</span>
+      <span class="pc" style="color:${x.h.color}">${Math.round(x.p * 100)}%</span></div>`).join('');
+  $('#app').innerHTML = renderTop() + `<div class="fade">
+    <div class="mnav"><button class="ibtn" id="mPrev" ${prevMonth(MK) < firstData ? 'disabled' : ''}>‹</button>
+      <div><div class="mt">${title}</div><div class="ms">${MK === monthStart(T) ? 'идёт сейчас' : 'итоги месяца'}</div></div>
+      <button class="ibtn" id="mNext" ${MK >= monthStart(T) ? 'disabled' : ''}>›</button></div>
+    <div class="mhero">
+      <div class="pct">${s.pct === null ? '<small>🚀 старт</small>' : Math.round(s.pct * 100) + '<small>%</small>'}</div>
+      ${st ? `<div class="stat">${esc(st)}</div>` : ''}
+      <div class="dayl">${s.pct === null ? 'пока нет закрытых дней' : 'выполнение цели · учтено дней: ' + s.counted}${delta !== null ? ` · <b style="color:${delta >= 0 ? 'var(--gr)' : 'var(--red)'}">${delta >= 0 ? '▲ +' : '▼ '}${delta}%</b> к ${MON[D(prevMonth(MK)).getUTCMonth()].replace(/я$/, 'ю').replace(/а$/, 'у')}` : ''}</div>
+    </div>
+    <div class="panel"><div class="cal">${cal}</div>
+      <div class="legend">меньше <i style="background:rgba(109,74,255,.2)"></i><i style="background:rgba(109,74,255,.5)"></i><i style="background:rgba(109,74,255,.8)"></i><i style="background:#f59f00"></i> идеально · нажмите на день</div></div>
+    <div class="kpis" style="margin-top:12px">
+      ${kpi(s.perfect, '⭐ Идеальных дней', 'из ' + s.counted)}
+      ${kpi(fmt(s.hours) + '<small style="font-size:13px"> ч</small>', '⏱ Часов вложено')}
+      ${kpi('+' + s.xp.toLocaleString('ru'), '⚡ Опыта за месяц')}
+      ${kpi(s.perfectWeeks, '👑 Идеальных недель', 'дней с записями: ' + s.activeDays)}
+    </div>
+    ${s.best ? `<div class="panel best" style="--c:${s.best.h.color}"><span class="em">${s.best.h.emoji}</span><div><div class="l">🏆 Привычка месяца</div>
+      <b>${esc(s.best.h.title)}</b> — ${Math.round(s.best.p * 100)}% цели</div></div>` : ''}
+    <div class="sec"><h3>ПРИВЫЧКИ ЗА МЕСЯЦ</h3><span>нажмите</span></div>
+    <div class="panel">${rows || '<div class="empty">Нет данных за этот месяц</div>'}</div>
+  </div>`;
+  bindTop();
+  const go = m => { hap.tap(); MK = m; renderMonth(); };
+  const pb = $('#mPrev'), nb = $('#mNext');
+  pb.onclick = () => { if (!pb.disabled) go(prevMonth(MK)); };
+  nb.onclick = () => { if (!nb.disabled) go(nextMonth(MK)); };
+  document.querySelectorAll('.cd.open').forEach(el => el.onclick = () => {
+    hap.tap(); SEL = el.dataset.day; TAB = 'today';
+    document.querySelectorAll('.nav button').forEach(x => x.classList.toggle('on', x.dataset.t === 'today'));
+    render(); scrollTo(0, 0);
+  });
+  document.querySelectorAll('.hrow').forEach(el => el.onclick = () => openDetail(M.habits[Number(el.dataset.i)]));
+}
+
+// ─── награды ───
+function renderAwards() {
+  const st = M.stats, got = achDone(st);
+  const b = ACH.map(a => {
+    const on = got.indexOf(a[0]) >= 0, cur = a[4](st), p = Math.min(1, cur / a[5]);
+    return `<div class="bdg ${on ? 'on' : ''}"><div class="ic">${a[1]}</div><div class="tt">${esc(a[2])}</div><div class="ds">${esc(a[3])}</div>
+      ${on ? '' : `<div class="pg"><i style="width:${(p * 100).toFixed(0)}%"></i></div>`}</div>`;
+  }).join('');
+  const ranks = RANKS.map((r, i) => {
+    const nx = RANKS[i + 1], cur = M.lvl.L >= r[0] && (!nx || M.lvl.L < nx[0]);
+    return `<div class="rank ${M.lvl.L >= r[0] ? 'got' : ''} ${cur ? 'cur' : ''}"><span class="lv">LVL ${r[0]}</span><span class="ri">${r[1]}</span><span class="rn">${r[2]}</span>${cur ? '<span>◀ ты здесь</span>' : M.lvl.L >= r[0] ? '✓' : '🔒'}</div>`;
+  }).join('');
+  $('#app').innerHTML = renderTop() + `<div class="fade">
+    <div class="sec"><h3>ДОСТИЖЕНИЯ</h3><span>${got.length} из ${ACH.length}</span></div>
+    <div class="badges">${b}</div>
+    <div class="sec"><h3>ЗВАНИЯ</h3><span>за уровень</span></div>
+    <div class="ranks">${ranks}</div>
+    <div class="sec"><h3>КАК КАЧАТЬСЯ</h3></div>
+    <div class="panel" style="font-size:13px;line-height:1.6;color:#4a4570;font-weight:600">
+      ⚔️ 75 XP за каждую закрытую ежедневную цель, до 100 XP за перевыполнение (до ${Math.round(M.cap * 100)}%); за частичное — часть<br>
+      🎯 +60 XP за подход недельной привычки<br>
+      🔥 +70 XP за каждые 7 дней стрика<br>
+      ⭐ +100 XP за идеальный день<br>
+      👑 +500 XP за идеальную неделю
+    </div>
+  </div>`;
+  bindTop();
+}
+
+// ═══════════════════════ ввод ═══════════════════════
+let SH_H = null;
+function openSheet(h) {
+  hap.tap();
+  SH_H = h;
+  const k = SEL, v = M.val(h, k), g = M.goalOn(h, k);
+  const dayTx = k === M.T ? 'сегодня' : human(k).toLowerCase();
+  let body;
+  if (h.type === 'да-нет') {
+    body = `<div class="big2"><button class="y" data-v="1">✅ Сделано</button><button data-v="0">Пропуск</button></div>
+      ${v > 0 ? `<button class="ghost" data-v="${-v}">Снять отметку</button>` : ''}`;
+  } else {
+    const qv = h.type === 'количество' ? [1, 2, 3, 4] : [10, 15, 20, 30, 45, 60, 90];
+    body = `<div class="big">${fmt(v)}<small> / ${fmt(g)} ${esc(h.unit)}</small></div>
+      <div class="chips">${qv.map(x => `<button class="chip" data-v="${x}">+${x}</button>`).join('')}</div>
+      <div class="row"><input class="inp" id="num" inputmode="decimal" placeholder="Своё: 45, 60+74, -20" autocomplete="off"><button class="go" id="add">Добавить</button></div>
+      <div class="row"><input class="inp note" id="note" placeholder="📝 Заметка (необязательно)" autocomplete="off"></div>
+      <button class="ghost" data-v="0">0 — осознанно пропускаю</button>`;
+  }
+  const sh = $('#sheet');
+  sh.style.setProperty('--c', h.color);
+  sh.innerHTML = `<div class="grab"></div><div class="sh-h"><div class="em">${h.emoji}</div><div><div class="tt">${esc(h.title)}</div>
+    <div class="sb">${dayTx} · цель ${fmt(g)} ${esc(h.unit)}${h.daily ? ' в день' : ', ' + h.perWeek + ' ' + plural(h.perWeek, 'раз', 'раза', 'раз') + ' в неделю'}${h.streak ? ' · 🔥 ' + h.streak + ' ' + h.unitStreak : ''}</div></div></div>${body}`;
+  sh.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { add(h, Number(b.dataset.v), noteVal()); closeSheet(); });
+  const go = sh.querySelector('#add');
+  if (go) {
+    const submit = () => {
+      const n = parseExpr($('#num').value);
+      if (n === null) { hap.err(); $('#num').focus(); return; }
+      add(h, n, noteVal()); closeSheet();
+    };
+    go.onclick = submit;
+    $('#num').onkeydown = e => { if (e.key === 'Enter') submit(); };
+  }
+  $('#scrim').classList.add('on'); sh.classList.add('on');
+  if (tg && tg.BackButton) { tg.BackButton.show(); tg.BackButton.onClick(closeSheet); }
+}
+const noteVal = () => { const n = $('#note'); return n ? n.value.trim() : ''; };
+function closeSheet() {
+  $('#scrim').classList.remove('on'); $('#sheet').classList.remove('on');
+  if (document.activeElement) document.activeElement.blur();
+  if (tg && tg.BackButton) { tg.BackButton.hide(); tg.BackButton.offClick(closeSheet); }
+}
+$('#scrim').onclick = closeSheet;
+
+function parseExpr(s) {
+  s = String(s || '').replace(/−/g, '-').replace(/,/g, '.').replace(/\s+/g, '');
+  if (!/^[-+]?\d+(\.\d+)?([-+]\d+(\.\d+)?)*$/.test(s)) return null;
+  return Math.round(s.match(/[-+]?\d+(\.\d+)?/g).reduce((a, x) => a + Number(x), 0) * 1000) / 1000;
+}
+
+function quick(h, btn) {
+  const v = Number(btn.dataset.v);
+  const r = btn.getBoundingClientRect();
+  add(h, v, '', { x: r.left + r.width / 2, y: r.top });
+}
+
+// Записи уходят на сервер по очереди; экран обновляется сразу (оптимистично).
+let chain = Promise.resolve(), pending = 0, failed = false;
+function enqueue(action, extra) {
+  pending++;
+  chain = chain.then(async () => {
+    let j = null;
+    try { j = await api(action, extra); }
+    catch (e) { failed = true; toast('⚠️ Не сохранилось: ' + e.message); hap.err(); }
+    pending--;
+    if (pending === 0) {
+      if (failed) { failed = false; try { j = await api('state'); } catch (e) { j = null; } }
+      if (j) { S = j; render(); if (j.message) toast(j.message); }
+    }
+  });
+  return chain;
+}
+
+function add(h, v, note, at) {
+  hap.hit();
+  const k = SEL, before = M;
+  S.log[k] = Object.assign({}, S.log[k] || {});
+  S.log[k][h.name] = (Number(S.log[k][h.name]) || 0) + v;
+  render();
+  celebrate(before, M, at);
+  enqueue('add', { habit: h.name, value: v, note: note || '', day: k === M.T ? '' : k });
+}
+
+// ═══════════════════════ праздники ═══════════════════════
+function celebrate(a, b, at) {
+  const dx = b.xp - a.xp;
+  if (dx) floatTx((dx > 0 ? '+' : '') + dx + ' XP', at);
+  const q = [];
+  if (b.lvl.L > a.lvl.L) {
+    const rk = rankOf(b.lvl.L), was = rankOf(a.lvl.L);
+    q.push({ ic: rk[1], k: 'LEVEL UP', h: 'УРОВЕНЬ ' + b.lvl.L, s: rk[2] !== was[2] ? 'Новое звание: ' + rk[2] : 'Ты становишься сильнее' });
+  }
+  const d0 = a.day[SEL] || {}, d1 = b.day[SEL] || {};
+  if (d1.perfect && !d0.perfect) q.push({ ic: '🌟', k: 'КВЕСТЫ ВЫПОЛНЕНЫ', h: 'ИДЕАЛЬНЫЙ ДЕНЬ', s: 'Все ежедневные цели закрыты. +100 XP' });
+  if (d1.perfectWeek && !d0.perfectWeek) q.push({ ic: '👑', k: 'НЕДЕЛЯ ЗАКРЫТА', h: 'ИДЕАЛЬНАЯ НЕДЕЛЯ', s: '+500 XP. Это уровень легенды' });
+  const g0 = achDone(a.stats), g1 = achDone(b.stats);
+  ACH.filter(x => g1.indexOf(x[0]) >= 0 && g0.indexOf(x[0]) < 0).forEach(x => q.push({ ic: x[1], k: 'ДОСТИЖЕНИЕ', h: x[2], s: x[3] }));
+  const s0 = b.statusOf(d0.pct), s1 = b.statusOf(d1.pct);
+  if (s1 && s1 !== s0 && (d1.pct || 0) > (d0.pct || 0) && !q.length) toast('Новый статус дня: ' + s1);
+  store.set('lvl', b.lvl.L); store.set('ach', g1.join(','));
+  if (q.length) showQueue(q);
+}
+
+let OQ = [];
+function showQueue(q) { OQ = OQ.concat(q); if (!$('#ovl').classList.contains('on')) nextOvl(); }
+function nextOvl() {
+  const o = OQ.shift(), ov = $('#ovl');
+  if (!o) { ov.classList.remove('on'); return; }
+  hap.ok();
+  $('#ovlBox').innerHTML = `<div class="ic">${o.ic}</div><div class="k">${esc(o.k)}</div><div class="h">${esc(o.h)}</div><div class="s">${esc(o.s)}</div><div class="tap">нажмите, чтобы продолжить</div>`;
+  ov.classList.remove('on'); void ov.offsetWidth; ov.classList.add('on');
+  confetti();
+}
+$('#ovl').onclick = () => { hap.tap(); nextOvl(); };
+
+function floatTx(t, at) {
+  const el = document.createElement('div');
+  el.className = 'float'; el.textContent = t;
+  el.style.left = (at ? at.x : innerWidth / 2) + 'px';
+  el.style.top = (at ? at.y : innerHeight * 0.3) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1300);
+}
+let toastT = 0;
+function toast(t) {
+  const el = $('#toast'); el.textContent = t; el.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 2600);
+}
+
+// ═══════════════════════ канвасы: звёзды и конфетти ═══════════════════════
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+(function sky() {
+  const c = $('#sky'), x = c.getContext('2d');
+  let W, H, stars = [];
+  const size = () => {
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    W = innerWidth; H = innerHeight; c.width = W * dpr; c.height = H * dpr; c.style.width = W + 'px'; c.style.height = H + 'px';
+    x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    stars = Array.from({ length: Math.round(W * H / 3500) }, () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.3 + .2,
+      t: Math.random() * 6.28, s: .5 + Math.random() * 1.5, v: .02 + Math.random() * .08, hue: Math.random() < .15 ? (Math.random() < .5 ? 190 : 300) : 250 }));
+  };
+  size(); addEventListener('resize', size);
+  let shoot = null;
+  const draw = now => {
+    x.clearRect(0, 0, W, H);
+    stars.forEach(s => {
+      const a = .35 + .65 * Math.abs(Math.sin(s.t + now / 1000 * s.s));
+      if (!RM) { s.y -= s.v; if (s.y < -2) { s.y = H + 2; s.x = Math.random() * W; } }
+      x.fillStyle = `hsla(${s.hue},85%,62%,${a * .45})`;
+      if (s.r > 1.2) {                                     // крупные — четырёхлучевые искры
+        const R = s.r * 2.4; x.beginPath(); x.moveTo(s.x, s.y - R); x.quadraticCurveTo(s.x, s.y, s.x + R, s.y);
+        x.quadraticCurveTo(s.x, s.y, s.x, s.y + R); x.quadraticCurveTo(s.x, s.y, s.x - R, s.y); x.quadraticCurveTo(s.x, s.y, s.x, s.y - R); x.fill();
+      } else { x.beginPath(); x.arc(s.x, s.y, s.r, 0, 6.28); x.fill(); }
+    });
+    if (!RM) {
+      if (!shoot && Math.random() < .004) shoot = { x: Math.random() * W, y: Math.random() * H * .4, l: 0 };
+      if (shoot) {
+        shoot.l += 1; const len = 90, px = shoot.x + shoot.l * 7, py = shoot.y + shoot.l * 3;
+        const g = x.createLinearGradient(px, py, px - len, py - len * 3 / 7);
+        g.addColorStop(0, 'rgba(109,74,255,.55)'); g.addColorStop(1, 'rgba(236,63,162,0)');
+        x.strokeStyle = g; x.lineWidth = 1.5; x.beginPath(); x.moveTo(px, py); x.lineTo(px - len, py - len * 3 / 7); x.stroke();
+        if (shoot.l > 40) shoot = null;
+      }
+    }
+    if (!document.hidden) requestAnimationFrame(draw);
+  };
+  requestAnimationFrame(draw);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) requestAnimationFrame(draw); });
+})();
+
+function confetti() {
+  if (RM) return;
+  const c = $('#fx'), x = c.getContext('2d'), dpr = Math.min(2, devicePixelRatio || 1);
+  c.width = innerWidth * dpr; c.height = innerHeight * dpr; c.style.width = innerWidth + 'px'; c.style.height = innerHeight + 'px';
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cols = ['#6d4aff', '#00b4d8', '#ec3fa2', '#12b886', '#f59f00', '#ffd43b'];
+  const cx = innerWidth / 2, cy = innerHeight * .42;
+  const ps = Array.from({ length: 160 }, () => {
+    const a = Math.random() * 6.28, sp = 4 + Math.random() * 9;
+    return { x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 3, r: 2 + Math.random() * 4, c: cols[Math.random() * cols.length | 0],
+      rot: Math.random() * 6, vr: (Math.random() - .5) * .4, life: 1, star: Math.random() < .3 };
+  });
+  const step = () => {
+    x.clearRect(0, 0, innerWidth, innerHeight);
+    let alive = 0;
+    ps.forEach(p => {
+      if (p.life <= 0) return; alive++;
+      p.vy += .18; p.vx *= .985; p.vy *= .985; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life -= .009;
+      x.save(); x.globalAlpha = Math.max(0, p.life); x.translate(p.x, p.y); x.rotate(p.rot); x.fillStyle = p.c;
+      x.shadowColor = p.c; x.shadowBlur = 8;
+      if (p.star) { x.beginPath(); for (let i = 0; i < 5; i++) { x.lineTo(Math.cos(i * 1.2566) * p.r * 1.6, Math.sin(i * 1.2566) * p.r * 1.6); x.lineTo(Math.cos(i * 1.2566 + .628) * p.r * .6, Math.sin(i * 1.2566 + .628) * p.r * .6); } x.fill(); }
+      else x.fillRect(-p.r, -p.r / 2, p.r * 2, p.r);
+      x.restore();
+    });
+    if (alive) requestAnimationFrame(step); else x.clearRect(0, 0, innerWidth, innerHeight);
+  };
+  requestAnimationFrame(step);
+}
+
+// ═══════════════════════ навигация и запуск ═══════════════════════
+document.querySelectorAll('.nav button').forEach(b => b.onclick = () => {
+  if (!S) return;
+  hap.tap(); TAB = b.dataset.t;
+  document.querySelectorAll('.nav button').forEach(x => x.classList.toggle('on', x === b));
+  render(); scrollTo(0, 0);
+});
+
+async function boot() {
+  try {
+    S = await api('state');
+    render();
+    // что произошло, пока приложение было закрыто
+    const lv = Number(store.get('lvl') || 0), seen = (store.get('ach') || '').split(',').filter(Boolean);
+    const got = achDone(M.stats), q = [];
+    if (lv && M.lvl.L > lv) q.push({ ic: rankOf(M.lvl.L)[1], k: 'LEVEL UP', h: 'УРОВЕНЬ ' + M.lvl.L, s: rankOf(M.lvl.L)[2] });
+    if (store.get('ach') !== null) ACH.filter(a => got.indexOf(a[0]) >= 0 && seen.indexOf(a[0]) < 0).forEach(a => q.push({ ic: a[1], k: 'ДОСТИЖЕНИЕ', h: a[2], s: a[3] }));
+    store.set('lvl', M.lvl.L); store.set('ach', got.join(','));
+    if (q.length) setTimeout(() => showQueue(q), 500);
+  } catch (e) {
+    $('#app').innerHTML = `<div class="load"><div style="text-align:center;max-width:300px;line-height:1.6">⚠️<br>${esc(e.message)}<br><br>
+      <button class="go" style="--c:#6d4aff" onclick="location.reload()">Повторить</button></div></div>`;
+  }
+}
+
+// ═══════════════════════ демо-данные ═══════════════════════
+let DEMO_S = null, DEMO_HIST = [];
+function demoState() {
+  if (DEMO_S) return DEMO_S;
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const T = K(new Date(Date.now() - 4 * 3600e3));
+  const habits = [
+    { name: '📚 Reading', type: 'минуты', goal: 30, perWeek: 7, unit: 'мин' },
+    { name: '🎓 University', type: 'минуты', goal: 60, perWeek: 7, unit: 'мин' },
+    { name: '🧠 Self-Development', type: 'минуты', goal: 30, perWeek: 7, unit: 'мин' },
+    { name: '💪 Gym', type: 'минуты', goal: 60, perWeek: 2, unit: 'мин' },
+    { name: '🧪 BAA', type: 'количество', goal: 1, perWeek: 7, unit: 'шт' },
+  ].map(h => Object.assign(h, { start: addDays(T, -75), pause: null }));
+  const log = {};
+  for (let i = 75; i >= 1; i--) {
+    const k = addDays(T, -i), disc = .55 + (75 - i) / 75 * .4, o = {};
+    habits.forEach(h => {
+      if (h.perWeek < 7) { if ([2, 5].indexOf(wday(k)) >= 0 && rnd() < disc + .1) o[h.name] = 45 + Math.round(rnd() * 4) * 15; return; }
+      if (rnd() < disc) o[h.name] = h.type === 'количество' ? 1 : Math.round(h.goal * (0.8 + rnd() * 0.7) / 5) * 5;
+      else if (rnd() < .4 && h.type !== 'количество') o[h.name] = Math.round(h.goal * rnd() * 0.6 / 5) * 5;
+    });
+    if (Object.keys(o).length) log[k] = o;
+  }
+  log[T] = { '📚 Reading': 30, '🎓 University': 45 };
+  DEMO_S = {
+    today: T, cap: 1.5, habits, goalChanges: [], log,
+    statuses: [[0, '🥉 NOVICE (NOOB)'], [.2, '📘 STUDENT (BEGINNER)'], [.3, '📗 PRACTITIONER (TRAINEE)'], [.4, '📊 MASTER (SKILLED)'],
+      [.5, '📈 EXPERT (ADVANCED)'], [.6, '💎 PRO (UNIQUE)'], [.7, '👑 LEGEND (RARE)'], [.8, '🌟 MYTH (EPIC)'], [.9, '⚡ GOD (LEGENDARY)'],
+      [1, '🏆 ABSOLUTE (MAX!)'], [1.2, '♾️ INFINITY'], [1.4, '🌌 UNIVERSE (OMEGA)']],
+  };
+  return DEMO_S;
+}
+async function demoApi(action, x) {
+  await new Promise(r => setTimeout(r, action === 'state' ? 500 : 250));
+  const s = demoState();
+  if (action === 'add') {
+    const k = x.day || s.today;
+    s.log[k] = Object.assign({}, s.log[k] || {});
+    s.log[k][x.habit] = (Number(s.log[k][x.habit]) || 0) + x.value;
+    DEMO_HIST.push([k, x.habit, x.value]);
+  }
+  let message = '';
+  if (action === 'undo') {
+    const u = DEMO_HIST.pop();
+    if (u) { s.log[u[0]][u[1]] -= u[2]; message = '↩️ Удалено: ' + u[1] + ' ' + u[2]; } else message = 'Нечего отменять';
+  }
+  return JSON.parse(JSON.stringify(Object.assign({ ok: true, message }, s)));
+}
+
+boot();
+</script>
+</body>
+</html>
